@@ -99,9 +99,11 @@ void loop() {
 int soilHumidityPercent;
 int airHumidityPercent;
 int airTemperatureDegrees;
+bool sensorsRefresh = false;
 void readSensors() {
-  if (millis() % 100 == 0) {
+  if (millis() % 100 == 0) {    
     soilHumidityPercent = readHumiditySensor();
+    sensorsRefresh = true;
   }
 }
 
@@ -148,19 +150,38 @@ void renderConfigMenu() {
   lcd.print("60%");
 }
 
-void handleStatusMenu(int key) {
-  if (refresh || key == BTN_SELECT) {
+int currentStatusMenuOption = 0;
+String statusMenuOptions[] = { "HUM. SUELO:    %", "TEMPERATURA:   C", "HUM. AMBIEN:   %" };
+int STATUS_MENU_SIZE = 3;
+
+void handleStatusMenu(int key) {  
+
+  if (refresh || sensorsRefresh) {
     renderStatusMenu();
     refresh = false;
+    sensorsRefresh = false;
   }
+  
   if (key == BTN_LEFT) {
     menuLevel = MENU_SELECT;
     refresh = true;
+  } else if (key == BTN_DOWN) {
+    if (currentStatusMenuOption < STATUS_MENU_SIZE - 1) {
+      currentStatusMenuOption++;
+    } else {
+      currentStatusMenuOption = 0;
+    }
+    refresh = true;
+  } else if (key == BTN_UP) {
+    if (currentStatusMenuOption > 0) {
+      currentStatusMenuOption--;
+    } else {
+      currentStatusMenuOption = STATUS_MENU_SIZE - 1;
+    }
+    refresh = true;
   }
-}
 
-int currentStatusMenuOption = 0;
-String statusMenuOptions[] = { "HUM. SUELO:    %", "TEMPERATURA:   C", "HUM. AMBIEN:   %" };
+}
 
 void renderStatusMenu() {
   lcd.setCursor(0, 0);
