@@ -1,5 +1,8 @@
 #include <MD_UISwitch.h>
 #include <LiquidCrystal.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
 
 #define MENU_MAIN    0
 #define MENU_SELECT  1
@@ -9,6 +12,10 @@
 
 #define KEYPAD_PIN   A0
 #define MOISTURE_SENSOR_PIN   A2
+#define TEMP_SENSOR_PIN 3
+
+#define ENABLE_TEMP_SENSOR 1
+#define ENABLE_HUMIDITY_SENSOR 1
 
 // button constants
 const uint8_t BTN_RIGHT  = 2;
@@ -45,6 +52,10 @@ MD_UISwitch_Analog::uiAnalogKeys_t kt[] =
 MD_UISwitch_Analog keyPad(KEYPAD_PIN, kt, ARRAY_SIZE(kt));
 // --
 
+// -- Control Temperature/Humidity sensor
+
+DHT dht(TEMP_SENSOR_PIN, DHT11);
+
 void setup() {
   lcd.begin(LCD_COLS, LCD_ROWS);
   lcd.clear();
@@ -56,6 +67,11 @@ void setup() {
   keyPad.enableLongPress(false);
   keyPad.enableRepeat(false);
   keyPad.enableRepeatResult(false);
+
+  dht.begin();
+
+  Serial.print("Starting watering system: ");
+  Serial.println(millis());
 }
 
 // menu main
@@ -68,13 +84,23 @@ String menuSelectOpts[3] = { "ESTADO        > ", "CONFIGURAR    > ", "REPORTES  
 int menuSelectLevels[3] = { MENU_STATUS, MENU_CONFIG, MENU_REPORT };
 int MENU_SELECT_SIZE = 3;
 
+// sensors values
+
+int soilHumidityPercent;
+float airHumidityPercent;
+float airTemperatureDegrees;
+bool sensorsRefresh = false;
+unsigned long lastTimeTempRead = 0;
+unsigned long TEMP_SENSOR_READ_DELAY = 5000;
+unsigned long lastTimeHumidityRead = 0;
+unsigned long HUMIDITY_SENSOR_READ_DELAY = 500;
+
 void loop() {
   
   int key = readButton();
   
-  // logMenuState(key);
   readSensors();
-  
+
   switch(menuLevel) {
     case MENU_MAIN:
       handleMainMenu(key);
@@ -96,15 +122,40 @@ void loop() {
   }    
 }
 
-int soilHumidityPercent;
-int airHumidityPercent;
-int airTemperatureDegrees;
-bool sensorsRefresh = false;
+
 void readSensors() {
-  if (millis() % 100 == 0) {    
+  unsigned long nowMs = millis();
+
+  // Serial.print("now: ");
+  // Serial.println(nowMs);
+
+#if ENABLE_TEMP_SENSOR
+  // Serial.print("Last temp: ");
+  // Serial.println(lastTimeTempRead);
+  if (nowMs - lastTimeTempRead >= TEMP_SENSOR_READ_DELAY) {
+    airHumidityPercent = dht.readHumidity();
+    airTemperatureDegrees = dht.readTemperature();
+    sensorsRefresh = true;
+    lastTimeTempRead = nowMs;
+    Serial.print("AT: ");
+    Serial.print(airTemperatureDegrees);
+    Serial.print(" / AH: ");
+    Serial.println(airHumidityPercent);
+  }
+#endif  
+
+#if ENABLE_HUMIDITY_SENSOR  
+  // Serial.print("Last hum: ");
+  // Serial.println(lastTimeHumidityRead);
+  if (nowMs - lastTimeHumidityRead >= HUMIDITY_SENSOR_READ_DELAY) {
     soilHumidityPercent = readHumiditySensor();
     sensorsRefresh = true;
+    lastTimeHumidityRead = nowMs;
+    Serial.print("SH: ");
+    Serial.println(soilHumidityPercent);
   }
+#endif
+
 }
 
 void handleReportMenu(int key) {
@@ -265,25 +316,8 @@ int readButton() {
 
 int readHumiditySensor() {
   int sensorValue=analogRead(MOISTURE_SENSOR_PIN);
-  
   int percentValue=map(sensorValue, 1023, 200, 0, 100);
-  Serial.print("Soil Moisture: ");
-  Serial.print(percentValue);
-  Serial.println(" %");
-
   return percentValue;
-}
-
-void logMenuState(int key) {
-  /*
-  Serial.print(millis());
-  Serial.print("- key: ");
-  Serial.print(key);
-  Serial.print(" - menu lvl:");
-  Serial.print(menuLevel);
-  Serial.print(" - menu opt:");
-  Serial.println(menuSelectPos);  
-  */
 }
 
 void renderMenuSelect() {
