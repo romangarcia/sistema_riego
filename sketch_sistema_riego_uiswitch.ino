@@ -1,8 +1,7 @@
 #include <MD_UISwitch.h>
 #include <LiquidCrystal.h>
-#include <Adafruit_Sensor.h>
 #include <DHT.h>
-#include <DHT_U.h>
+
 
 #define MENU_MAIN    0
 #define MENU_SELECT  1
@@ -180,6 +179,10 @@ void renderReportMenu() {
   lcd.print("10:43");
 }
 
+int CONFIG_MENU_SIZE = 2;
+int currentConfigMenuOption = 0;
+String configMenuOptions[] = { "HUM.RIEGO:     %", "MIN.RIEGO:     M" /*, "HORA ACT:       "*/ };
+
 void handleConfigMenu(int key) {
   if (refresh) {
     renderConfigMenu();
@@ -188,6 +191,29 @@ void handleConfigMenu(int key) {
   if (key == BTN_LEFT) {
     menuLevel = MENU_SELECT;
     refresh = true;
+  } else if (key == BTN_DOWN) {
+    if (currentConfigMenuOption < CONFIG_MENU_SIZE - 1) {
+      currentConfigMenuOption++;
+    } else {
+      currentConfigMenuOption = 0;
+    }
+    refresh = true;
+  } else if (key == BTN_UP) {
+    if (currentConfigMenuOption > 0) {
+      currentConfigMenuOption--;
+    } else {
+      currentConfigMenuOption = CONFIG_MENU_SIZE - 1;
+    }
+    refresh = true;
+  } else if (key == BTN_SELECT) {
+    switch (currentConfigMenuOption) {
+      case 0:
+        handleConfigHumidityStart();
+        break;
+      case 1:
+        handleConfigWateringMinutes();
+        break;
+    }
   }
 }
 
@@ -195,10 +221,26 @@ void renderConfigMenu() {
   lcd.setCursor(0, 0);
   lcd.print("CONFIGURAR    < ");
   lcd.setCursor(0, 1);
-  
-  lcd.print("HUM.RIEGO:");
-  lcd.setCursor(12, 1);
-  lcd.print("60%");
+
+  lcd.print(configMenuOptions[currentConfigMenuOption]);
+  lcd.setCursor(13, 1);
+  lcd.print(readConfigMenuValue());
+}
+
+int settingHumidityPercentStart;
+int settingWateringTimeMinutes;
+// int settingCurrentDateTime;
+int readConfigMenuValue() {
+  switch(currentConfigMenuOption) {
+    case 0:   // hum riego
+      return settingHumidityPercentStart;
+    case 1:   // minutos riego
+      return settingWateringTimeMinutes;
+    /*case 2:
+      return settingCurrentDateTime;*/
+    default:
+      return -1;
+  }
 }
 
 int currentStatusMenuOption = 0;
